@@ -54,6 +54,10 @@ var axisX = new vec3.fromValues(1, 0, 0);
 var axisY = new vec3.fromValues(0, 1, 0);
 var axisZ = new vec3.fromValues(0, 0, 1);
 
+var thetaX = 0;
+var thetaY = 0;
+var thetaz = 0;
+
 // ASSIGNMENT HELPER FUNCTIONS
 
 // get the JSON file from the passed URL
@@ -124,6 +128,7 @@ function loadTriangles() { // CREATES BUFFERS
         for (var whichSet = 0; whichSet < inputTriangles.length; whichSet++) {
 
             inputTriangles[whichSet].mMatrix = mat4.create();
+            // inputTriangles[whichSet].ogMatrix = mat4.create();
             // set up the vertex coord array
             for (whichSetVert = 0; whichSetVert < inputTriangles[whichSet].vertices.length; whichSetVert++) {
                 coordArray = coordArray.concat(inputTriangles[whichSet].vertices[whichSetVert]);
@@ -349,7 +354,7 @@ function renderTriangles() {
 
     for (var whichSet = 0; whichSet < inputTriangles.length; whichSet++) {
         var material = inputTriangles[whichSet].material;
-
+        gl.uniformMatrix4fv(modelMatrixULoc, false, inputTriangles[whichSet].mMatrix);
         // Send the material properties to the shader
         gl.uniform3fv(ambientColorUniform, new Float32Array(material.ambient));
         gl.uniform3fv(diffuseColorUniform, new Float32Array(material.diffuse));
@@ -369,17 +374,17 @@ function renderTriangles() {
     if(flag_for_selection) { 
         console.log("flag " , flag_for_selection);
         // calculate centroid
-        var centroid = getCentroid(inputTriangles[0].vertices);// 0 --> 1 : 0 -> default?
+        var centroid = getCentroid(inputTriangles[currentTriangleSet].vertices);// 0 --> 1 : 0 -> default?
 
-        mat4.fromTranslation(inputTriangles[0].mMatrix, vec3.negate(vec3.create(),centroid)); // move to origin 000
-        mat4.multiply(inputTriangles[0].mMatrix,
-            mat4.fromScaling(mat4.create(),vec3.fromValues(2,2,2)),
-            inputTriangles[0].mMatrix); // scaling
-        // mat4.multiply(inputTriangles[0].mMatrix,mat4.fromRotation(mat4.create(),(thetaX * Math.PI) / 6, axisX),inputTriangles[0].mMatrix);
-        // mat4.multiply(inputTriangles[0].mMatrix,mat4.fromRotation(mat4.create(),(thetaY * Math.PI) / 6, axisY),inputTriangles[0].mMatrix);
-        // mat4.multiply(inputTriangles[0].mMatrix,mat4.fromRotation(mat4.create(),(thetaZ * Math.PI) / 6, axisZ),inputTriangles[0].mMatrix);//rotaion on all axises
+        mat4.fromTranslation(inputTriangles[currentTriangleSet].mMatrix, vec3.negate(vec3.create(),centroid)); // move to origin 000
+        mat4.multiply(inputTriangles[currentTriangleSet].mMatrix,
+            mat4.fromScaling(mat4.create(),vec3.fromValues(2,1.2,1.2)),
+            inputTriangles[currentTriangleSet].mMatrix); // scaling
+        mat4.multiply(inputTriangles[0].mMatrix,mat4.fromRotation(mat4.create(),(thetaX * Math.PI) / 6, axisX),inputTriangles[0].mMatrix);
+        mat4.multiply(inputTriangles[0].mMatrix,mat4.fromRotation(mat4.create(),(thetaY * Math.PI) / 6, axisY),inputTriangles[0].mMatrix);
+        mat4.multiply(inputTriangles[0].mMatrix,mat4.fromRotation(mat4.create(),(thetaZ * Math.PI) / 6, axisZ),inputTriangles[0].mMatrix);//rotaion on all axises
 
-        mat4.multiply(inputTriangles[0].mMatrix, mat4.fromTranslation(mat4.create(),centroid),inputTriangles[0].mMatrix);    
+        mat4.multiply(inputTriangles[currentTriangleSet].mMatrix, mat4.fromTranslation(mat4.create(),centroid),inputTriangles[currentTriangleSet].mMatrix);    
         // mat4.multiply(inputTriangles[0].mMatrix, mat4.fromTranslation(mat4.create(),tmodel),inputTriangles[0].mMatrix);
 
     }
@@ -442,18 +447,36 @@ function setupKeyListeners() {
             case 'S': // Rotate view backward (pitch) around X
                 rotateViewBackward();
                 break;
-            case 't': {
+            case 't': 
                 flag_for_selection = 1;
-                
+                inputTriangles[currentTriangleSet].mMatrix = mat4.create();
                 currentTriangleSet = (currentTriangleSet + 1) % inputTriangles.length;
-                renderTriangles()
-            }
+                // console.log(" curent set1 " , currentTriangleSet);
+                // renderTriangles()
+                break;
             case 'y': {
                 flag_for_selection = 1;
+                inputTriangles[currentTriangleSet].mMatrix = mat4.create();
                 currentTriangleSet = (currentTriangleSet - 1 + inputTriangles.length) % inputTriangles.length;
+                // console.log(" curent set " , currentTriangleSet);
+                break;
                 // selectNext()
             }
+            case 'r': {
+            }
+            case 'f': {
+            }
+            case 'space': {
+                flag_for_selection = 0;
+                for(i =0 ; i<inputTriangles.length();i++) {
+                    inputTriangles[i].mMatrix = mat4.create();
+                }   
+            }
         }
+
+
+        // how to scale down on next selection 
+
         // renderTriangles();
     });
 }
