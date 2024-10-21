@@ -46,7 +46,13 @@ var vertexPositionAttrib; // where to put position for vertex shader
 var vertexNormalAttrib; // what colors to put for vertex shader
 var altPositionUniform; // where to put altPosition flag for vertex shader
 var shaderProgram;
+var currentTriangleSet = 0;
 
+var selectedSet = 0;
+
+var axisX = new vec3.fromValues(1, 0, 0);
+var axisY = new vec3.fromValues(0, 1, 0);
+var axisZ = new vec3.fromValues(0, 0, 1);
 
 // ASSIGNMENT HELPER FUNCTIONS
 
@@ -101,7 +107,7 @@ function setupWebGL() {
 } // end setupWebGL
 
 // read triangles in, load them into webgl buffers
-function loadTriangles() {
+function loadTriangles() { // CREATES BUFFERS
     inputTriangles = getJSONFile(INPUT_TRIANGLES_URL, "triangles");
     if (inputTriangles != String.null) {
         var whichSetVert; // index of vertex in current triangle set
@@ -117,6 +123,7 @@ function loadTriangles() {
 
         for (var whichSet = 0; whichSet < inputTriangles.length; whichSet++) {
 
+            inputTriangles[whichSet].mMatrix = mat4.create();
             // set up the vertex coord array
             for (whichSetVert = 0; whichSetVert < inputTriangles[whichSet].vertices.length; whichSetVert++) {
                 coordArray = coordArray.concat(inputTriangles[whichSet].vertices[whichSetVert]);
@@ -203,6 +210,7 @@ function setupShaders() {
     var vShaderCode = `
         uniform mat4 viewMatrix;
         uniform mat4 projectionMatrix;
+        uniform mat4 uModelMatrix;
 
         attribute vec3 vertexPosition;
         attribute vec3 vertexNormal;
@@ -215,18 +223,10 @@ function setupShaders() {
         
         void main(void) {
         fragNormal = vertexNormal;
-        // fragPosition = vertexPosition;
-            if(altPosition) {
-                // fragNormal = vertexNormal;
-                vec3 alteredPosition = vertexPosition + vec3(-0.5, -0.5, 0.0);
-                fragPosition = alteredPosition;    
-                gl_Position = projectionMatrix * viewMatrix * vec4(alteredPosition, 1.0); // use the altered position
-            }
-            else
-                // fragNormal = vertexNormal;
-                fragPosition = vertexPosition;
-                gl_Position = projectionMatrix * viewMatrix * vec4(vertexPosition, 1.0); // use the untransformed position
-                
+
+        fragPosition = vertexPosition;
+        gl_Position = projectionMatrix * viewMatrix * uModelMatrix * vec4(vertexPosition, 1.0); // use the untransformed position
+
         }
     `;
 
@@ -290,7 +290,7 @@ function setupShaders() {
 } // end setup shaders
 
 
-var bgColor = 0;
+// var bgColor = 0;
 
 // render the loaded model
 function renderTriangles() {
@@ -309,14 +309,25 @@ function renderTriangles() {
     // Set the view matrix as a uniform in the shader
     var viewMatrixUniform = gl.getUniformLocation(shaderProgram, "viewMatrix");
     gl.uniformMatrix4fv(viewMatrixUniform, false, viewMatrix);
+    var modelMatrixULoc = gl.getUniformLocation(shaderProgram, "uModelMatrix");
+    gl.uniformMatrix4fv(modelMatrixULoc, false, inputTriangles[0].mMatrix);
+    gl.uniformMatrix4fv(modelMatrixULoc, false, inputTriangles[1].mMatrix);
+    gl.uniformMatrix4fv(modelMatrixULoc, false, inputTriangles[2].mMatrix);
+    gl.uniformMatrix4fv(modelMatrixULoc, false, inputTriangles[3].mMatrix);
+
+    //model matrix
+    // for(whichSet = 0; ;) {
+    //     gl.uniformMatrix4fv(modelMatrixULoc, false, inputTriangles[selectedSet].mMatrix);
+    // }
+    
 
     var projectionMatrixUniform = gl.getUniformLocation(shaderProgram, "projectionMatrix");
     gl.uniformMatrix4fv(projectionMatrixUniform, false, projectionMatrix);
 
 
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); // clear frame/depth buffers
-    bgColor = (bgColor < 1) ? (bgColor + 0.001) : 0;
-    gl.clearColor(bgColor, 0, 0, 1.0);
+    // gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); // clear frame/depth buffers
+    // bgColor = (bgColor < 1) ? (bgColor + 0.001) : 0;
+    // gl.clearColor(bgColor, 0, 0, 1.0);
 
     requestAnimationFrame(renderTriangles);
 
@@ -354,7 +365,47 @@ function renderTriangles() {
         gl.drawElements(gl.TRIANGLES, indexCount, gl.UNSIGNED_SHORT, byteOffset);
     }
 
+    
+    if(flag_for_selection) { 
+        console.log("flag " , flag_for_selection);
+        // calculate centroid
+        var centroid = getCentroid(inputTriangles[0].vertices);// 0 --> 1 : 0 -> default?
+
+        mat4.fromTranslation(inputTriangles[0].mMatrix, vec3.negate(vec3.create(),centroid)); // move to origin 000
+        mat4.multiply(inputTriangles[0].mMatrix,
+            mat4.fromScaling(mat4.create(),vec3.fromValues(2,2,2)),
+            inputTriangles[0].mMatrix); // scaling
+        // mat4.multiply(inputTriangles[0].mMatrix,mat4.fromRotation(mat4.create(),(thetaX * Math.PI) / 6, axisX),inputTriangles[0].mMatrix);
+        // mat4.multiply(inputTriangles[0].mMatrix,mat4.fromRotation(mat4.create(),(thetaY * Math.PI) / 6, axisY),inputTriangles[0].mMatrix);
+        // mat4.multiply(inputTriangles[0].mMatrix,mat4.fromRotation(mat4.create(),(thetaZ * Math.PI) / 6, axisZ),inputTriangles[0].mMatrix);//rotaion on all axises
+
+        mat4.multiply(inputTriangles[0].mMatrix, mat4.fromTranslation(mat4.create(),centroid),inputTriangles[0].mMatrix);    
+        // mat4.multiply(inputTriangles[0].mMatrix, mat4.fromTranslation(mat4.create(),tmodel),inputTriangles[0].mMatrix);
+
+    }
+
+
 } // end render triangles
+
+function getCentroid(vertices) {
+    let centroid = [0, 0, 0];  // Initialize the centroid at the origin [0, 0, 0]
+
+    // Sum all vertex positions
+    vertices.forEach(vertex => {
+        centroid[0] += vertex[0];  // Sum of x-coordinates
+        centroid[1] += vertex[1];  // Sum of y-coordinates
+        centroid[2] += vertex[2];  // Sum of z-coordinates
+    });
+
+    // Divide by the number of vertices to get the average (i.e., the centroid)
+    let numVertices = vertices.length;
+    centroid[0] /= numVertices;
+    centroid[1] /= numVertices;
+    centroid[2] /= numVertices;
+
+    return centroid;  // Return the computed centroid as [x, y, z]
+}
+
 
 function setupKeyListeners() {
     document.addEventListener('keydown', function (event) {
@@ -391,19 +442,30 @@ function setupKeyListeners() {
             case 'S': // Rotate view backward (pitch) around X
                 rotateViewBackward();
                 break;
+            case 't': {
+                flag_for_selection = 1;
+                
+                currentTriangleSet = (currentTriangleSet + 1) % inputTriangles.length;
+                renderTriangles()
+            }
+            case 'y': {
+                flag_for_selection = 1;
+                currentTriangleSet = (currentTriangleSet - 1 + inputTriangles.length) % inputTriangles.length;
+                // selectNext()
+            }
         }
-        renderTriangles();
+        // renderTriangles();
     });
 }
 
-
+var flag_for_selection = 0;
 var moveSpeed = 0.1;
 var rotationSpeed = 0.05;
 
 function moveViewLeft() {
     Eye[0] -= moveSpeed;
     viewAt[0] -= moveSpeed;
-    renderTriangles();
+    // renderTriangles();
 }
 
 function moveViewRight() {
