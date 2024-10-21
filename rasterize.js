@@ -49,8 +49,9 @@ var vertexPositionAttrib; // where to put position for vertex shader
 var vertexNormalAttrib; // what colors to put for vertex shader
 var altPositionUniform; // where to put altPosition flag for vertex shader
 var shaderProgram;
-var currentTriangleSet = 0;
 var translateMatrix = new vec3.fromValues(0,0,0);
+// var currentTriangleSet = 0;
+var currentTriangleSet = -1;
 
 var selectedSet = 0;
 
@@ -61,6 +62,8 @@ var axisZ = new vec3.fromValues(0, 0, 1);
 var thetaX = 0;
 var thetaY = 0;
 var thetaZ = 0;
+
+var theta = [];
 
 // ASSIGNMENT HELPER FUNCTIONS
 
@@ -130,7 +133,7 @@ function loadTriangles() { // CREATES BUFFERS
         var indexCounts = [];  // Number of indices for each triangle set
 
         for (var whichSet = 0; whichSet < inputTriangles.length; whichSet++) {
-
+            theta[whichSet] = [0,0,0];
             inputTriangles[whichSet].mMatrix = mat4.create();
             // inputTriangles[whichSet].translateMatrix = mat4.create();
             // inputTriangles[whichSet].ogMatrix = mat4.create();
@@ -320,10 +323,6 @@ function renderTriangles() {
     var viewMatrixUniform = gl.getUniformLocation(shaderProgram, "viewMatrix");
     gl.uniformMatrix4fv(viewMatrixUniform, false, viewMatrix);
     var modelMatrixULoc = gl.getUniformLocation(shaderProgram, "uModelMatrix");
-    gl.uniformMatrix4fv(modelMatrixULoc, false, inputTriangles[0].mMatrix);
-    gl.uniformMatrix4fv(modelMatrixULoc, false, inputTriangles[1].mMatrix);
-    gl.uniformMatrix4fv(modelMatrixULoc, false, inputTriangles[2].mMatrix);
-    gl.uniformMatrix4fv(modelMatrixULoc, false, inputTriangles[3].mMatrix);
     
 
     var projectionMatrixUniform = gl.getUniformLocation(shaderProgram, "projectionMatrix");
@@ -378,8 +377,11 @@ function renderTriangles() {
 
         mat4.fromTranslation(inputTriangles[currentTriangleSet].mMatrix, vec3.negate(vec3.create(),centroid)); // move to origin 000
         mat4.multiply(inputTriangles[currentTriangleSet].mMatrix,
-            mat4.fromScaling(mat4.create(),vec3.fromValues(2,1.2,1.2)),
+            mat4.fromScaling(mat4.create(),vec3.fromValues(1.2,1.2,1.2)),
             inputTriangles[currentTriangleSet].mMatrix); // scaling
+        thetaX = theta[currentTriangleSet][0];
+        thetaY = theta[currentTriangleSet][1];
+        thetaZ = theta[currentTriangleSet][2];
         mat4.multiply(inputTriangles[currentTriangleSet].mMatrix,mat4.fromRotation(mat4.create(),(thetaX * Math.PI) / 6, axisX),inputTriangles[currentTriangleSet].mMatrix);
         mat4.multiply(inputTriangles[currentTriangleSet].mMatrix,mat4.fromRotation(mat4.create(),(thetaY * Math.PI) / 6, axisY),inputTriangles[currentTriangleSet].mMatrix);
         mat4.multiply(inputTriangles[currentTriangleSet].mMatrix,mat4.fromRotation(mat4.create(),(thetaZ * Math.PI) / 6, axisZ),inputTriangles[currentTriangleSet].mMatrix);//rotaion on all axises
@@ -453,37 +455,55 @@ function setupKeyListeners() {
                 // thetaY = 0;
                 // thetaZ = 0;
                 flag_for_selection = 1;
-                inputTriangles[currentTriangleSet].mMatrix = mat4.create();
-                currentTriangleSet = (currentTriangleSet + 1) % inputTriangles.length;
+                if(currentTriangleSet==-1) {
+                    currentTriangleSet = 0;
+                    if(inputTriangles[currentTriangleSet].mMatrix) {
+                        inputTriangles[currentTriangleSet].mMatrix = mat4.create();
+                    }
+                } else {
+                    if(inputTriangles[currentTriangleSet].mMatrix) {
+                        inputTriangles[currentTriangleSet].mMatrix = mat4.create();
+                    }
+                    currentTriangleSet = (currentTriangleSet + 1) % inputTriangles.length;
+                }
                 // console.log(" curent set1 " , currentTriangleSet);
                 // renderTriangles()
                 break;
             case 'ArrowRight': {
                 flag_for_selection = 1;
-                inputTriangles[currentTriangleSet].mMatrix = mat4.create();
-                currentTriangleSet = (currentTriangleSet - 1 + inputTriangles.length) % inputTriangles.length;
+                if(currentTriangleSet==-1) {
+                    currentTriangleSet = 0;
+                    if(inputTriangles[currentTriangleSet].mMatrix) {
+                        inputTriangles[currentTriangleSet].mMatrix = mat4.create();
+                    }
+                } else {
+                    if(inputTriangles[currentTriangleSet].mMatrix) {
+                        inputTriangles[currentTriangleSet].mMatrix = mat4.create();
+                    }
+                    currentTriangleSet = (currentTriangleSet - 1 + inputTriangles.length) % inputTriangles.length;
+                }
                 // console.log(" curent set " , currentTriangleSet);
                 break;
                 // selectNext()
             }
             case 'K': {
-                thetaX += 0.2;
-                // thetaY = 0;
-                // thetaZ = 0;
+                theta[currentTriangleSet][0] += 0.2;
                 break;
             }
             case ':': {
-                thetaX -= 0.2;
-                // thetaX = 0;
-                // thetaZ = 0;
+                theta[currentTriangleSet][1] += 0.2;
                 break;
             }
             case 'O': {
-                thetaY += 0.2;
-                // thetaY = 0;
-                // thetaZ = 0;
+                theta[currentTriangleSet][2] += 0.2;
                 break;
             }
+            // case 'Space': {
+            //     flag_for_selection = 0;
+            //     for(i =0 ; i<inputTriangles.length();i++) {
+            //         inputTriangles[i].mMatrix = mat4.create();
+            //     }   
+            // }
             case 'L': {
                 thetaY -= 0.2;
                 // thetaX = 0;
