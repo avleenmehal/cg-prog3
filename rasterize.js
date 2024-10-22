@@ -62,7 +62,6 @@ var thetaX = 0;
 var thetaY = 0;
 var thetaZ = 0;
 
-// ASSIGNMENT HELPER FUNCTIONS
 
 // get the JSON file from the passed URL
 function getJSONFile(url, descr) {
@@ -130,6 +129,11 @@ function loadTriangles() { // CREATES BUFFERS
         var indexCounts = [];  // Number of indices for each triangle set
 
         for (var whichSet = 0; whichSet < inputTriangles.length; whichSet++) {
+
+            inputTriangles[whichSet].thetaX = 0;
+            inputTriangles[whichSet].thetaY = 0;
+            inputTriangles[whichSet].thetaZ = 0;
+            inputTriangles[whichSet].translateMatrix = [0, 0, 0];
 
             inputTriangles[whichSet].mMatrix = mat4.create();
             // inputTriangles[whichSet].translateMatrix = mat4.create();
@@ -320,10 +324,6 @@ function renderTriangles() {
     var viewMatrixUniform = gl.getUniformLocation(shaderProgram, "viewMatrix");
     gl.uniformMatrix4fv(viewMatrixUniform, false, viewMatrix);
     var modelMatrixULoc = gl.getUniformLocation(shaderProgram, "uModelMatrix");
-    gl.uniformMatrix4fv(modelMatrixULoc, false, inputTriangles[0].mMatrix);
-    gl.uniformMatrix4fv(modelMatrixULoc, false, inputTriangles[1].mMatrix);
-    gl.uniformMatrix4fv(modelMatrixULoc, false, inputTriangles[2].mMatrix);
-    gl.uniformMatrix4fv(modelMatrixULoc, false, inputTriangles[3].mMatrix);
     
 
     var projectionMatrixUniform = gl.getUniformLocation(shaderProgram, "projectionMatrix");
@@ -368,30 +368,56 @@ function renderTriangles() {
 
         // Draw the triangles
         gl.drawElements(gl.TRIANGLES, indexCount, gl.UNSIGNED_SHORT, byteOffset);
+
+        
     }
+    
 
     
     if(flag_for_selection) { 
+        
         console.log("flag " , flag_for_selection);
         // calculate centroid
         var centroid = getCentroid(inputTriangles[currentTriangleSet].vertices);// 0 --> 1 : 0 -> default?
 
         mat4.fromTranslation(inputTriangles[currentTriangleSet].mMatrix, vec3.negate(vec3.create(),centroid)); // move to origin 000
         mat4.multiply(inputTriangles[currentTriangleSet].mMatrix,
-            mat4.fromScaling(mat4.create(),vec3.fromValues(2,1.2,1.2)),
+            mat4.fromScaling(mat4.create(),vec3.fromValues(1.2,1.2,1.2)),
             inputTriangles[currentTriangleSet].mMatrix); // scaling
-        mat4.multiply(inputTriangles[currentTriangleSet].mMatrix,mat4.fromRotation(mat4.create(),(thetaX * Math.PI) / 6, axisX),inputTriangles[currentTriangleSet].mMatrix);
-        mat4.multiply(inputTriangles[currentTriangleSet].mMatrix,mat4.fromRotation(mat4.create(),(thetaY * Math.PI) / 6, axisY),inputTriangles[currentTriangleSet].mMatrix);
-        mat4.multiply(inputTriangles[currentTriangleSet].mMatrix,mat4.fromRotation(mat4.create(),(thetaZ * Math.PI) / 6, axisZ),inputTriangles[currentTriangleSet].mMatrix);//rotaion on all axises
+        mat4.multiply(inputTriangles[currentTriangleSet].mMatrix,mat4.fromRotation(mat4.create(),(inputTriangles[currentTriangleSet].thetaX * Math.PI) / 6, axisX),inputTriangles[currentTriangleSet].mMatrix);
+        mat4.multiply(inputTriangles[currentTriangleSet].mMatrix,mat4.fromRotation(mat4.create(),(inputTriangles[currentTriangleSet].thetaY * Math.PI) / 6, axisY),inputTriangles[currentTriangleSet].mMatrix);
+        mat4.multiply(inputTriangles[currentTriangleSet].mMatrix,mat4.fromRotation(mat4.create(),(inputTriangles[currentTriangleSet].thetaZ * Math.PI) / 6, axisZ),inputTriangles[currentTriangleSet].mMatrix);//rotaion on all axises
 
         mat4.multiply(inputTriangles[currentTriangleSet].mMatrix, mat4.fromTranslation(mat4.create(),centroid),inputTriangles[currentTriangleSet].mMatrix);    
         
-        mat4.multiply(inputTriangles[currentTriangleSet].mMatrix, mat4.fromTranslation(mat4.create(),translateMatrix),inputTriangles[currentTriangleSet].mMatrix);
+        mat4.multiply(inputTriangles[currentTriangleSet].mMatrix, mat4.fromTranslation(mat4.create(),inputTriangles[currentTriangleSet].translateMatrix),inputTriangles[currentTriangleSet].mMatrix);
 
     }
 
 
 } // end render triangles
+
+function descaleSet(triangleSet) {
+    // Calculate the centroid of the set
+    var centroid = getCentroid(triangleSet.vertices);  
+    // Step 1: Move the object to the origin (subtract centroid)
+    mat4.fromTranslation(triangleSet.mMatrix, vec3.negate(vec3.create(), centroid));
+
+    // Step 2: Apply the inverse scaling (1/1.2 = 0.8333)
+    mat4.multiply(triangleSet.mMatrix,
+        mat4.fromScaling(mat4.create(), vec3.fromValues(1/1.2, 1/1.2, 1/1.2)),
+        triangleSet.mMatrix);
+
+    // Step 3: Move the object back to its original position (add centroid)
+    mat4.multiply(inputTriangles[currentTriangleSet].mMatrix,mat4.fromRotation(mat4.create(),(inputTriangles[currentTriangleSet].thetaX * Math.PI) / 6, axisX),inputTriangles[currentTriangleSet].mMatrix);
+    mat4.multiply(inputTriangles[currentTriangleSet].mMatrix,mat4.fromRotation(mat4.create(),(inputTriangles[currentTriangleSet].thetaY * Math.PI) / 6, axisY),inputTriangles[currentTriangleSet].mMatrix);
+    mat4.multiply(inputTriangles[currentTriangleSet].mMatrix,mat4.fromRotation(mat4.create(),(inputTriangles[currentTriangleSet].thetaZ * Math.PI) / 6, axisZ),inputTriangles[currentTriangleSet].mMatrix);//rotaion on all axises
+
+    mat4.multiply(inputTriangles[currentTriangleSet].mMatrix, mat4.fromTranslation(mat4.create(),centroid),inputTriangles[currentTriangleSet].mMatrix);    
+    
+    mat4.multiply(inputTriangles[currentTriangleSet].mMatrix, mat4.fromTranslation(mat4.create(),inputTriangles[currentTriangleSet].translateMatrix),inputTriangles[currentTriangleSet].mMatrix);
+}
+
 
 function getCentroid(vertices) {
     let centroid = [0, 0, 0];  // Initialize the centroid at the origin [0, 0, 0]
@@ -453,86 +479,92 @@ function setupKeyListeners() {
                 // thetaY = 0;
                 // thetaZ = 0;
                 flag_for_selection = 1;
-                inputTriangles[currentTriangleSet].mMatrix = mat4.create();
+                if(flag_for_selection) {
+                    descaleSet(inputTriangles[currentTriangleSet]);
+                }
+                // inputTriangles[currentTriangleSet].mMatrix = mat4.create();
                 currentTriangleSet = (currentTriangleSet + 1) % inputTriangles.length;
                 // console.log(" curent set1 " , currentTriangleSet);
                 // renderTriangles()
                 break;
             case 'ArrowRight': {
                 flag_for_selection = 1;
-                inputTriangles[currentTriangleSet].mMatrix = mat4.create();
+                if(flag_for_selection) {
+                    descaleSet(inputTriangles[currentTriangleSet]);
+                }
+                // inputTriangles[currentTriangleSet].mMatrix = mat4.create();
                 currentTriangleSet = (currentTriangleSet - 1 + inputTriangles.length) % inputTriangles.length;
                 // console.log(" curent set " , currentTriangleSet);
                 break;
                 // selectNext()
             }
             case 'K': {
-                thetaX += 0.2;
+                inputTriangles[currentTriangleSet].thetaX += 0.2;
                 // thetaY = 0;
                 // thetaZ = 0;
                 break;
             }
             case ':': {
-                thetaX -= 0.2;
+                inputTriangles[currentTriangleSet].thetaX -= 0.2;
                 // thetaX = 0;
                 // thetaZ = 0;
                 break;
             }
             case 'O': {
-                thetaY += 0.2;
+                inputTriangles[currentTriangleSet].thetaY += 0.2;
                 // thetaY = 0;
                 // thetaZ = 0;
                 break;
             }
             case 'L': {
-                thetaY -= 0.2;
+                inputTriangles[currentTriangleSet].thetaY -= 0.2;
                 // thetaX = 0;
                 // thetaZ = 0;
                 break;
             }
             case 'I': {
-                thetaZ += 0.2;
+                inputTriangles[currentTriangleSet].thetaZ += 0.2;
                 // thetaX = 0;
                 // thetaY = 0;
                 break;
             }
             case 'P': {
-                thetaZ -= 0.2;
+                inputTriangles[currentTriangleSet].thetaZ -= 0.2;
                 // thetaX = 0;
                 // thetaY = 0;
                 break;
             }
             case 'k': {
-                translateMatrix[0] += 0.1;
+                inputTriangles[currentTriangleSet].translateMatrix[0] += 0.1;
                 // thetaY = 0;
                 // thetaZ = 0;
                 break;
             }
             case ';': {
-                translateMatrix[0] -= 0.1;
+                inputTriangles[currentTriangleSet].translateMatrix[0] -= 0.1;
                 // thetaX = 0;
                 // thetaZ = 0;
                 break;
             }
             case 'o': {
-                translateMatrix[1] += 0.1;
+                inputTriangles[currentTriangleSet].translateMatrix[1] += 0.1;
                 // thetaY = 0;
                 // thetaZ = 0;
                 break;
             }
             case 'l': {
-                translateMatrix[1] -= 0.1;                // thetaX = 0;
+                inputTriangles[currentTriangleSet].translateMatrix[1] -= 0.1;                // thetaX = 0;
                 // thetaZ = 0;
                 break;
             }
             case 'i': {
-                translateMatrix[2] += 0.1;
+                inputTriangles[currentTriangleSet].translateMatrix[2] += 0.1;
                 // thetaX = 0;
                 // thetaY = 0;
                 break;
             }
             case 'p': {
-                translateMatrix[2] -= 0.1;                // thetaX = 0;
+                inputTriangles[currentTriangleSet].translateMatrix[2] -= 0.1;                // thetaX = 0;
                 // thetaY = 0;
                 break;
             }
@@ -541,7 +573,11 @@ function setupKeyListeners() {
     
                 // Reset all transformations (set all triangles back to identity matrix)
                 for (var i = 0; i < inputTriangles.length; i++) {
-                    inputTriangles[i].mMatrix = mat4.create(); // Reset transformation matrix to identity matrix
+                    inputTriangles[i].mMatrix = mat4.create();
+                    inputTriangles[currentTriangleSet].thetaX = 0; // Reset transformation matrix to identity matrix
+                    inputTriangles[currentTriangleSet].thetaY = 0;
+                    inputTriangles[currentTriangleSet].thetaZ = 0;
+                    inputTriangles[currentTriangleSet].translateMatrix = [0,0,0];
                 }
                 Eye = OgEye;
                 viewAt = oGviewAt;
