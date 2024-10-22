@@ -4,7 +4,7 @@
 const WIN_Z = 0;  // default graphics window z coord in world space
 const WIN_LEFT = 0; const WIN_RIGHT = 1;  // default left and right x coords in world space
 const WIN_BOTTOM = 0; const WIN_TOP = 1;  // default top and bottom y coords in world space
-const INPUT_TRIANGLES_URL = "triangles2.json"; // triangles file loc
+var INPUT_TRIANGLES_URL = "triangles2.json"; // triangles file loc
 const INPUT_ELLIPSOIDS_URL = "https://ncsucgclass.github.io/prog3/ellipsoids.json";
 //const INPUT_SPHERES_URL = "https://ncsucgclass.github.io/prog3/spheres.json"; // spheres file loc
 
@@ -680,5 +680,15 @@ function main() {
     setupShaders(); // setup the webGL shaders
     setupKeyListeners();
     renderTriangles(); // draw the triangles using webGL
+
+    document.addEventListener('keydown', function(event) {
+        if (event.key === '!') {
+            INPUT_TRIANGLES_URL = "makeItOwn.json";
+            loadTriangles(); // load in the triangles from tri file
+            setupShaders(); // setup the webGL shaders
+            setupKeyListeners();
+            renderTriangles(); // draw the triangles using webGL
+        }
+    });
 
 } // end main
